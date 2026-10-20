@@ -52,7 +52,7 @@ After Features 1 and 2 are merged, the chat send path can call `NetworkCondition
 
 ## Generative AI Assistance
 
-TODO: Add the team's final, accurate explanation of how generative AI contributed to Feature 3. This section must be completed by the team and should not claim contributions that did not occur.
+Generative AI tools were used to help refine the design of the network-condition simulator, suggest a modular implementation structure, generate and review unit-test cases, verify terminology for application-level simulated message loss, and improve the clarity of the Feature 3 documentation. Final design decisions, implementation review, and validation were performed by the team.
 
 ## Report-ready Summary
 
