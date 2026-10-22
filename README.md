@@ -92,6 +92,8 @@ Historical files preserve teammates' original contributions and are separate ear
 
 ## Development and Testing
 
+See [testing between teammates' computers](docs/network-testing.md) for IP setup, server/client commands, Feature 1–3 verification, and result collection.
+
 Collaborate through feature branches and reviewed pull requests. The integration combines the original Feature 1 broadcast/threading design with Feature 2A registration and Feature 2B routing, and reuses Feature 3's simulator.
 
 ```bash
