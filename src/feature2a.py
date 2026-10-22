@@ -42,17 +42,50 @@ def handleClients(conn, addr):
             if not data:
                 break
             
-            #Actually makes the message thats readable
-            message = f"{username}: {data.decode().strip()}\n"
-
-            #Sends the message to every client except the sender
-            with clientsLock:
-                for otherName, otherConn in clients.items():
-                    if otherName != username:
-                        try:
-                            otherConn.sendall(message.encode())
-                        except OSError:
-                            pass
+            text = data.decode().strip()
+ 
+            #Skip blank lines
+            if not text:
+                continue
+ 
+            #Private message format: @username message
+            if text.startswith("@"):
+                #Remove the "@" and split on the FIRST space only,
+                #so "@bob hi there" -> target = "bob", privateMsg = "hi there"
+                parts = text[1:].split(" ", 1)
+                target = parts[0]
+                privateMsg = parts[1].strip() if len(parts) > 1 else ""
+ 
+                #"@bob" with no message, or just "@"
+                if not target or not privateMsg:
+                    conn.sendall("[Server] Usage: @username message\n".encode())
+                    continue
+ 
+                #Don't let a client message themselves
+                if target == username:
+                    conn.sendall("[Server] You can't send a private message to yourself.\n".encode())
+                    continue
+ 
+                #Look up the target's socket in the dictionary
+                with clientsLock:
+                    targetConn = clients.get(target)
+ 
+                if targetConn is None:
+                    #Target username isn't connected
+                    conn.sendall(f"[Server] User '{target}' not found.\n".encode())
+                else:
+                    try:
+                        #Send ONLY to the target, labelled with who sent it
+                        targetConn.sendall(f"[Private] {username}: {privateMsg}\n".encode())
+                        #Confirm to the sender that it was delivered
+                        conn.sendall(f"[To {target}] {privateMsg}\n".encode())
+                        print(f"Private message: {username} -> {target}")
+                    except OSError:
+                        conn.sendall(f"[Server] Could not deliver message to '{target}'.\n".encode())
+            else:
+                #Anything that doesn't start with @ is the wrong format
+                conn.sendall("[Server] Use the format @username message\n".encode())
+                
     except OSError as error:
         print(f"Error with {addr}: {error}")
     finally:
