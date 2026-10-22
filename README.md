@@ -1,18 +1,15 @@
 # TCP Multiclient Chat
 
-A small Python networking project for building a multi-client TCP chat application with a central server.
+A four-person CSE 3461 Python networking project using the standard library.
 
-## Project Overview
+## Implementation Status
 
-This project is a small Python TCP chat application developed by a four-person team. The common TCP foundation is in place, and the feature implementations are currently maintained in separate files while development continues toward final consolidation.
+- **Feature 1 — Broadcast Messaging:** implemented and integrated. Ordinary messages go to every other registered client, identified by sender username.
+- **Feature 2A — Username Registration and Client Management:** implemented and integrated. Registration requires a unique, case-sensitive username of 1–24 ASCII letters, digits or underscores. Rejected usernames can be retried.
+- **Feature 2B — Private Messaging:** implemented and integrated. `@username message` goes only to that recipient. Unknown targets, missing message bodies and self-messages produce sender-only errors.
+- **Feature 3 — Network Condition Simulation:** implemented, tested and integrated into the server user-message send path. Artificial latency, artificial jitter and application-level simulated message loss apply independently per intended recipient. Registration, validation errors and other control messages bypass impairment.
 
-## Features
-
-- **Feature 1: Broadcast messaging** — implemented in the standalone Feature 1 server/client files with multiple clients, per-client threading, broadcast messaging, connection cleanup, and configurable host/port.
-- **Feature 2: Private messaging** — Feature 2A username registration and client management is implemented; Feature 2B private-message routing is not yet implemented.
-- **Feature 3: Network condition simulation and performance metrics** — simulate artificial latency, jitter, and application-level message loss, then measure their impact.
-
-Feature 3 is modular and is not integrated into the chat send path yet. Its simulated message loss occurs at the application level; it must not be described as actual TCP packet loss or TCP retransmission behavior. Its delivered-messages-per-second result should be described as effective throughput or simulated delivery throughput, not actual network throughput.
+Localhost integration is verified. Final over-the-air tests between teammates' computers, report measurements and the demonstration remain team tasks.
 
 ## Team Responsibilities
 
@@ -23,78 +20,67 @@ Feature 3 is modular and is not integrated into the chat send path yet. Its simu
 
 All team members will participate in the final demonstration, and each implementation owner will document their technical contribution for the report.
 
-## Current Development Status
+## Running the Integrated Application
 
-### Implemented
-
-- **Feature 1 — Broadcast Messaging:** `Feature 1 Server.py` and `Feature 1 client.py` support multiple clients, per-client threading, broadcast messaging, connection cleanup, and configurable host/port.
-- **Feature 2A — Username Registration and Client Management:** `src/feature2a.py` supports username registration, username/socket mappings, connected-client management, threaded client handling, and username-based message display/broadcast.
-- **Feature 3 — Network Condition Simulation:** the standalone simulator, experiment runner, and tests are complete.
-
-### In Progress
-
-- **Feature 2B — Private Messaging:** will add `@username` private-message routing and handling.
-
-### Awaiting Integration
-
-- The currently separate Feature 1 and Feature 2 components will be consolidated into the main client/server application after Feature 2B is complete.
-- Feature 3 will be integrated into the unified chat socket send path only after the consolidated chat implementation exists. Final Feature 3 measurements will be collected at that stage.
-
-## Running the Initial TCP Foundation
-
-The commands below run the original connection-only foundation in `src/server.py` and `src/client.py`. They are not the implemented Feature 1 broadcast server/client or the Feature 2A server.
-
-Start the server with the default local address and port:
+Baseline server (default: `127.0.0.1:5000`, zero impairment):
 
 ```bash
 python3 src/server.py
 ```
 
-In another terminal, connect a client:
+In each client terminal:
 
 ```bash
 python3 src/client.py
 ```
 
-The default address is `127.0.0.1` and the default port is `5000`. Use `--host` and `--port` to choose a custom address, for example:
+Enter a username when prompted. Send ordinary text for broadcast, `@Jiho hello` for a private message, and `/quit` to leave. Ctrl+C exits either application.
+
+Example impaired server:
+
+```bash
+python3 src/server.py --latency-ms 20 --jitter-ms 5 --loss-rate 0.2 --seed 42
+```
+
+For teammates on a reachable network, bind the server to all interfaces and connect clients to the server computer's reachable IPv4 address:
 
 ```bash
 python3 src/server.py --host 0.0.0.0 --port 5001
 python3 src/client.py --host 192.168.1.10 --port 5001
 ```
 
-This initial foundation accepts connections and closes them immediately. It does not send chat messages or provide threading, usernames, broadcast messaging, private messaging, or Feature 3.
+Replace the example IP with the actual server address and allow the selected port through the host firewall. Run only one server on a given host/port. The terminal client's keyboard polling uses `select` on stdin, as in Feature 1; macOS/Linux terminals are supported. Windows console input has not been supported or validated.
 
-## Running Implemented Feature Components
+The server uses per-client threads, newline-delimited UTF-8 framing, a locked username mapping and per-client send locks. Incomplete frames remain buffered; a trailing frame without a newline is discarded at disconnect.
 
-Feature 1 can be run with its standalone server and client:
+## Feature 3 Measurements
+
+On shutdown, the server prints delivery attempts, simulated drops, simulator passes, socket send successes/failures, artificial delay statistics and effective throughput. Each intended recipient counts as one attempt. Socket send success means `sendall` completed; it does not confirm receipt or display by the remote client. There is no ACK protocol.
+
+Application-level simulated message loss is not actual TCP packet loss. Effective throughput is successful server sends per elapsed second, not actual network throughput. See [Feature 3 documentation](docs/feature3.md) for exact definitions and limitations.
+
+The standalone simulator experiment remains available:
 
 ```bash
-python3 "Feature 1 Server.py"
-python3 "Feature 1 client.py" 127.0.0.1 --port 5000
+python3 src/feature3_experiment.py --messages 10 --latency-ms 20 --jitter-ms 5 --loss-rate 0.2 --seed 42 --compare-baseline
 ```
-
-Feature 2A currently provides its server component. It uses `127.0.0.1:5000` and expects a compatible TCP client to connect:
-
-```bash
-python3 src/feature2a.py
-```
-
-These Feature 1 and Feature 2A components remain separate until Feature 2B is complete and final consolidation begins.
 
 ## Repository Structure
 
 ```text
 tcp-multiclient-chat/
-├── Feature 1 Server.py
-├── Feature 1 client.py
 ├── src/
-│   ├── server.py
-│   ├── client.py
-│   ├── feature2a.py
-│   ├── network_conditions.py
-│   └── feature3_experiment.py
+│   ├── server.py                 # final integrated server
+│   ├── client.py                 # final integrated interactive client
+│   ├── protocol.py               # shared newline framing
+│   ├── network_conditions.py     # reusable Feature 3 simulator
+│   ├── send_metrics.py           # integrated send-path counters
+│   ├── feature3_experiment.py    # standalone experiment
+│   └── feature2a.py              # historical Feature 2A/2B implementation
+├── Feature 1 Server.py           # historical individual server
+├── Feature 1 client.py           # historical individual client
 ├── tests/
+│   ├── test_chat.py
 │   └── test_network_conditions.py
 ├── docs/
 │   └── feature3.md
@@ -102,14 +88,16 @@ tcp-multiclient-chat/
 └── .gitignore
 ```
 
-## Development
+Historical files preserve teammates' original contributions and are separate earlier implementations. Use `src/server.py` and `src/client.py` for the unified application.
 
-Implementation is done collaboratively through feature branches and pull requests. Feature 1 and Feature 2A are currently implemented in separate components, while Feature 2B is still in progress. After Feature 2B is complete, the separate Feature 1 and Feature 2 components will be consolidated into the main client/server application. Feature 3 should remain modular until the unified chat implementation exists; its integration and final measurements will follow that consolidation. Final over-the-air testing between teammates' computers will occur after integration.
+## Development and Testing
 
-The Feature 3 experiment can be run with:
+Collaborate through feature branches and reviewed pull requests. The integration combines the original Feature 1 broadcast/threading design with Feature 2A registration and Feature 2B routing, and reuses Feature 3's simulator.
 
 ```bash
-python3 src/feature3_experiment.py --compare-baseline
+python3 -m unittest discover -s tests -v
+python3 -m compileall -q src tests
+git diff --check
 ```
 
-See [docs/feature3.md](docs/feature3.md) for the experiment design and terminology.
+The suite includes deterministic simulator tests and actual localhost three-client smoke tests for baseline/impaired operation, registration, framing, broadcast/private isolation, errors and cleanup. Preliminary test metrics are not final report measurements.
