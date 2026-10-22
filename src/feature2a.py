@@ -16,6 +16,7 @@ server.bind((HOST, PORT))
 #Puts socket in server mode
 server.listen()
 print(f"Server listening on {HOST}:{PORT}")
+print("Type Ctrl + C to close server")
 
 #Empty dictionary (username, socket), creates a list of who is in the chat
 clients = {}
@@ -26,7 +27,7 @@ def handleClients(conn, addr):
     username = None
     try:
         #Asks for a username inside the thread so the accept loop is never blocked
-        conn.sendall("Enter Username: ".encode())
+        conn.sendall("Enter Username: \n".encode())
         username = conn.recv(1024).decode().strip()
 
         #Waits till no one else is talking to client then uses it and gives it back
@@ -63,9 +64,22 @@ def handleClients(conn, addr):
         print(f"{username or addr} disconnected")
 
 
-while True:
-    conn, addr = server.accept()
+try:
+    while True:
+        conn, addr = server.accept()
 
-    thread = threading.Thread(target = handleClients, args = (conn, addr), daemon = True)
+        thread = threading.Thread(target = handleClients, args = (conn, addr), daemon = True)
 
-    thread.start()
+        thread.start()
+except KeyboardInterrupt:
+    #Ctrl + C stops the accept loop instead of showing a traceback
+    print("\nShutting down server")
+finally:
+    #Disconnects every client so their threads end cleanly, then closes the server socket
+    with clientsLock:
+        for clientConn in clients.values():
+            try:
+                clientConn.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+    server.close()
