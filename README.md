@@ -40,7 +40,9 @@ All team members will participate in the final demonstration, and each implement
 - The currently separate Feature 1 and Feature 2 components will be consolidated into the main client/server application after Feature 2B is complete.
 - Feature 3 will be integrated into the unified chat socket send path only after the consolidated chat implementation exists. Final Feature 3 measurements will be collected at that stage.
 
-## Running the Current Foundation
+## Running the Initial TCP Foundation
+
+The commands below run the original connection-only foundation in `src/server.py` and `src/client.py`. They are not the implemented Feature 1 broadcast server/client or the Feature 2A server.
 
 Start the server with the default local address and port:
 
@@ -61,7 +63,24 @@ python3 src/server.py --host 0.0.0.0 --port 5001
 python3 src/client.py --host 192.168.1.10 --port 5001
 ```
 
-The current foundation accepts connections and closes them immediately. It does not send chat messages or provide threading, usernames, broadcast messaging, private messaging, or Feature 3.
+This initial foundation accepts connections and closes them immediately. It does not send chat messages or provide threading, usernames, broadcast messaging, private messaging, or Feature 3.
+
+## Running Implemented Feature Components
+
+Feature 1 can be run with its standalone server and client:
+
+```bash
+python3 "Feature 1 Server.py"
+python3 "Feature 1 client.py" 127.0.0.1 --port 5000
+```
+
+Feature 2A currently provides its server component. It uses `127.0.0.1:5000` and expects a compatible TCP client to connect:
+
+```bash
+python3 src/feature2a.py
+```
+
+These Feature 1 and Feature 2A components remain separate until Feature 2B is complete and final consolidation begins.
 
 ## Repository Structure
 
