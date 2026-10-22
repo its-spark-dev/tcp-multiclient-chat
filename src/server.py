@@ -1,41 +1,142 @@
-"""Minimal TCP server foundation for the future chat application."""
+"""Unified threaded chat server, combining Features 1, 2A and 2B."""
 
 import argparse
+import re
 import socket
+import threading
+
+from protocol import read_lines, send_line
 
 
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 5000
+class Peer:
+    """Serialize writes to one client, as in the original Feature 1 server."""
+
+    def __init__(self, connection):
+        self.connection = connection
+        self.send_lock = threading.Lock()
+
+    def send(self, text):
+        with self.send_lock:
+            send_line(self.connection, text)
+
+    def close(self):
+        try:
+            self.connection.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        self.connection.close()
 
 
-def parse_args():
-    """Parse the server address from the command line."""
-    parser = argparse.ArgumentParser(description="Start the TCP chat server.")
-    parser.add_argument("--host", default=DEFAULT_HOST, help="address to bind to")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="port to bind to")
-    return parser.parse_args()
+class ChatServer:
+    """Protect registration state without holding its lock during socket I/O."""
+
+    def __init__(self):
+        self.clients = {}
+        self.peers = set()
+        self.workers = []
+        self.lock = threading.Lock()
+
+    def deliver(self, peer, text):
+        try:
+            peer.send(text)
+        except OSError:
+            peer.close()
+
+    def route(self, username, peer, text):
+        if not text.strip():
+            return
+        if text.startswith("@"):
+            parts = text[1:].split(maxsplit=1)
+            if len(parts) != 2 or not parts[1].strip():
+                peer.send("[Server] Usage: @username message")
+                return
+            target, message = parts
+            if target == username:
+                peer.send("[Server] You can't send a private message to yourself.")
+                return
+            with self.lock:
+                recipient = self.clients.get(target)
+            if recipient is None:
+                peer.send(f"[Server] User '{target}' not found.")
+                return
+            self.deliver(recipient, f"[Private] {username}: {message}")
+        else:
+            with self.lock:
+                recipients = [other for name, other in self.clients.items()
+                              if name != username]
+            for recipient in recipients:
+                self.deliver(recipient, f"[{username}] {text}")
+
+    def handle(self, peer):
+        username = None
+        try:
+            peer.send("[Server] Enter username:")
+            lines = read_lines(peer.connection)
+            for candidate in lines:
+                if not re.fullmatch(r"[A-Za-z0-9_]{1,24}", candidate):
+                    peer.send("[Server] Use 1-24 letters, digits or underscores.")
+                    continue
+                with self.lock:
+                    available = candidate not in self.clients
+                    if available:
+                        self.clients[candidate] = peer
+                if available:
+                    username = candidate
+                    peer.send(f"[Server] Registered: {username}")
+                    break
+                peer.send("[Server] Username already in use. Try another:")
+            if username is None:
+                return
+            for text in lines:
+                if text == "/quit":
+                    break
+                self.route(username, peer, text)
+        except (OSError, UnicodeError):
+            pass
+        finally:
+            with self.lock:
+                if self.clients.get(username) is peer:
+                    del self.clients[username]
+                self.peers.discard(peer)
+            peer.close()
+
+    def serve(self, host, port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            listener.bind((host, port))
+            listener.listen()
+            print(f"Server listening on {listener.getsockname()}", flush=True)
+            try:
+                while True:
+                    connection, _ = listener.accept()
+                    peer = Peer(connection)
+                    with self.lock:
+                        self.peers.add(peer)
+                    self.workers = [worker for worker in self.workers if worker.is_alive()]
+                    worker = threading.Thread(target=self.handle, args=(peer,))
+                    self.workers.append(worker)
+                    worker.start()
+            finally:
+                with self.lock:
+                    peers = list(self.peers)
+                for peer in peers:
+                    peer.close()
+                for worker in self.workers:
+                    worker.join()
 
 
-def run_server(host, port):
-    """Listen for connections and close each client after logging its address."""
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=5000)
+    args = parser.parse_args()
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server_socket.bind((host, port))
-            server_socket.listen()
-            print(f"Server listening on {host}:{port}", flush=True)
-
-            while True:
-                client_socket, client_address = server_socket.accept()
-                with client_socket:
-                    print(f"Connection accepted from {client_address}", flush=True)
+        ChatServer().serve(args.host, args.port)
+    except KeyboardInterrupt:
+        print("\nServer stopped.")
     except OSError as error:
-        print(f"Server socket error: {error}")
+        parser.exit(1, f"Server error: {error}\n")
 
 
 if __name__ == "__main__":
-    arguments = parse_args()
-    try:
-        run_server(arguments.host, arguments.port)
-    except KeyboardInterrupt:
-        print("\nServer stopped.")
+    main()

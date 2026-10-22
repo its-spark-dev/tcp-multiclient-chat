@@ -1,31 +1,64 @@
-"""Minimal TCP client foundation for the future chat application."""
+"""Interactive chat client with background receiving, derived from Feature 1."""
 
 import argparse
+import select
 import socket
+import sys
+import threading
+
+from protocol import read_lines, send_line
 
 
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 5000
-
-
-def parse_args():
-    """Parse the server address from the command line."""
-    parser = argparse.ArgumentParser(description="Connect to the TCP chat server.")
-    parser.add_argument("--host", default=DEFAULT_HOST, help="server address")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="server port")
-    return parser.parse_args()
-
-
-def connect_to_server(host, port):
-    """Connect once to the server, confirm the connection, and close cleanly."""
+def receive_messages(connection, connected):
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-            client_socket.connect((host, port))
-            print(f"Connected to server at {host}:{port}")
+        for line in read_lines(connection):
+            print(line, flush=True)
+    except (OSError, UnicodeError) as error:
+        if connected.is_set():
+            print(f"Receive error: {error}", flush=True)
+    finally:
+        connected.clear()
+        print("Disconnected.", flush=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=5000)
+    args = parser.parse_args()
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:
+            connection.connect((args.host, args.port))
+            print("Enter a username when prompted; then chat or use @username message.")
+            print("Type /quit to exit.")
+            connected = threading.Event()
+            connected.set()
+            receiver = threading.Thread(target=receive_messages,
+                                        args=(connection, connected))
+            receiver.start()
+            try:
+                while connected.is_set():
+                    ready, _, _ = select.select([sys.stdin], [], [], 0.2)
+                    if not ready:
+                        continue
+                    line = sys.stdin.readline()
+                    if not line:
+                        break
+                    send_line(connection, line.rstrip("\r\n"))
+                    if line.strip() == "/quit":
+                        break
+            finally:
+                connected.clear()
+                try:
+                    connection.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                receiver.join()
+    except KeyboardInterrupt:
+        print("\nClient stopped.")
     except OSError as error:
-        print(f"Client socket error: {error}")
+        parser.exit(1, f"Client error: {error}\n")
 
 
 if __name__ == "__main__":
-    arguments = parse_args()
-    connect_to_server(arguments.host, arguments.port)
+    main()
