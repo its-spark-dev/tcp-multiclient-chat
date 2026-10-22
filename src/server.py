@@ -6,6 +6,9 @@ import socket
 import threading
 
 from protocol import read_lines, send_line
+from network_conditions import NetworkConditions
+from send_metrics import SendMetrics
+from feature3_experiment import non_negative_float, loss_rate
 
 
 class Peer:
@@ -30,17 +33,31 @@ class Peer:
 class ChatServer:
     """Protect registration state without holding its lock during socket I/O."""
 
-    def __init__(self):
+    def __init__(self, conditions=None):
         self.clients = {}
         self.peers = set()
         self.workers = []
         self.lock = threading.Lock()
+        self.conditions = conditions if conditions is not None else NetworkConditions()
+        self.metrics = SendMetrics()
 
     def deliver(self, peer, text):
+        self.metrics.attempt()
+        result = self.conditions.apply(text)
+        if not result.delivered:
+            self.metrics.record(result)
+            return
         try:
             peer.send(text)
         except OSError:
+            self.metrics.record(result, success=False)
+            with self.lock:
+                for name, client in list(self.clients.items()):
+                    if client is peer:
+                        del self.clients[name]
             peer.close()
+        else:
+            self.metrics.record(result, success=True)
 
     def route(self, username, peer, text):
         if not text.strip():
@@ -129,13 +146,23 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--latency-ms", type=non_negative_float, default=0)
+    parser.add_argument("--jitter-ms", type=non_negative_float, default=0)
+    parser.add_argument("--loss-rate", type=loss_rate, default=0)
+    parser.add_argument("--seed", type=int)
     args = parser.parse_args()
+    server = ChatServer(NetworkConditions(args.latency_ms, args.jitter_ms,
+                                          args.loss_rate, args.seed))
     try:
-        ChatServer().serve(args.host, args.port)
+        server.serve(args.host, args.port)
     except KeyboardInterrupt:
         print("\nServer stopped.")
     except OSError as error:
         parser.exit(1, f"Server error: {error}\n")
+    finally:
+        print("Server send-path metrics (no receipt acknowledgement):", flush=True)
+        for name, value in server.metrics.summary().items():
+            print(f"  {name}: {value}", flush=True)
 
 
 if __name__ == "__main__":

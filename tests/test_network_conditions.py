@@ -15,7 +15,7 @@ class NetworkConditionsTests(unittest.TestCase):
         result = conditions.apply("message")
         self.assertTrue(result.delivered)
         self.assertEqual(result.delay_ms, 0.0)
-        self.assertEqual(self.sleeps, [0.0])
+        self.assertEqual(self.sleeps, [])
 
     def test_full_loss_drops_every_message_without_sleeping(self):
         conditions = NetworkConditions(loss_rate=1, sleep_func=self.no_sleep)

@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 import random
 import time
+import math
+import threading
 
 
 @dataclass(frozen=True)
@@ -18,9 +20,9 @@ class NetworkConditions:
 
     def __init__(self, latency_ms=0.0, jitter_ms=0.0, loss_rate=0.0,
                  seed=None, sleep_func=time.sleep):
-        if latency_ms < 0:
+        if not math.isfinite(latency_ms) or latency_ms < 0:
             raise ValueError("latency_ms must be non-negative")
-        if jitter_ms < 0:
+        if not math.isfinite(jitter_ms) or jitter_ms < 0:
             raise ValueError("jitter_ms must be non-negative")
         if not 0 <= loss_rate <= 1:
             raise ValueError("loss_rate must be between 0 and 1")
@@ -30,15 +32,17 @@ class NetworkConditions:
         self.loss_rate = float(loss_rate)
         self._random = random.Random(seed)
         self._sleep = sleep_func
+        self._random_lock = threading.Lock()
 
     def apply(self, message):
         """Return a delivery result after applying conditions to ``message``."""
         del message  # The simulator measures delivery, not message contents.
 
-        if self._random.random() < self.loss_rate:
-            return DeliveryResult(delivered=False, delay_ms=0.0)
-
-        jitter = self._random.uniform(-self.jitter_ms, self.jitter_ms)
+        with self._random_lock:
+            if self._random.random() < self.loss_rate:
+                return DeliveryResult(delivered=False, delay_ms=0.0)
+            jitter = self._random.uniform(-self.jitter_ms, self.jitter_ms)
         delay_ms = max(0.0, self.latency_ms + jitter)
-        self._sleep(delay_ms / 1000)
+        if delay_ms:
+            self._sleep(delay_ms / 1000)
         return DeliveryResult(delivered=True, delay_ms=delay_ms)

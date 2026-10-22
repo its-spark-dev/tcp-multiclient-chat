@@ -2,6 +2,7 @@
 
 import argparse
 import time
+import math
 
 from network_conditions import NetworkConditions
 
@@ -9,7 +10,7 @@ from network_conditions import NetworkConditions
 def non_negative_float(value):
     """Parse a non-negative command-line float."""
     number = float(value)
-    if number < 0:
+    if not math.isfinite(number) or number < 0:
         raise argparse.ArgumentTypeError("must be non-negative")
     return number
 
