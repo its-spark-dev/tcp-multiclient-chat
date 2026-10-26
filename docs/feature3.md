@@ -2,11 +2,11 @@
 
 ## Objective
 
-Feature 3 evaluates how controlled, artificial network conditions affect message delivery time and effective throughput. The experiment is designed to be repeatable and to provide measurements that can be compared before and after the feature is integrated with the chat application.
+Feature 3 studies communication behavior under artificial latency, artificial jitter and application-level simulated message loss. It is integrated into the chat server and records server-send-path outcomes, requested artificial delays and effective throughput. The team has completed the recorded demonstration and supplied the results below.
 
 ## Design
 
-The simulator is a small, reusable application-level component in `src/network_conditions.py`. For each attempted message, it first determines whether the message is lost. If the message is delivered, it calculates a non-negative delay from the configured latency and jitter, waits for that delay, and returns the delivery result. `src/feature3_experiment.py` applies the component to a configurable number of messages and summarizes the outcomes. An optional random seed supports reproducible loss and jitter decisions.
+The simulator is a small, reusable application-level component in `src/network_conditions.py`. For each attempt, it first decides whether to simulate a drop. A simulator pass receives a non-negative artificial delay before the caller attempts socket sending. `src/feature3_experiment.py` also runs the component independently of sockets and summarizes simulated outcomes. An optional random seed supports reproducible loss and jitter decisions for a fixed call order.
 
 ## Simulated Conditions
 
@@ -42,24 +42,37 @@ The experiment reports:
 - messages dropped
 - delivery rate
 - total elapsed time
-- average delay for delivered messages
-- minimum and maximum delay for delivered messages
+- average requested artificial delay for simulator passes
+- minimum and maximum requested artificial delay for simulator passes
 - effective throughput, expressed as simulated delivered messages per second
 
 ## Experimental Method
 
-The experiment compares a zero-impairment baseline with a selected impaired condition. Both runs attempt the same number of messages. The impaired run is configured with artificial latency, artificial jitter, and application-level simulated message loss. The command supports `--messages`, `--latency-ms`, `--jitter-ms`, `--loss-rate`, and `--seed`; `--compare-baseline` enables the baseline comparison. Final integrated measurements should use the same message count and configuration across comparable runs.
+The standalone runner supports `--messages`, `--latency-ms`, `--jitter-ms`, `--loss-rate`, and `--seed`; `--compare-baseline` runs a zero-impairment baseline and an impaired condition with the same message count. For additional integrated comparisons, use the same workload and client arrangement while changing only the impairment settings.
 
 For integrated runs, use the server commands in README, keep client count, recipients, workload and timing comparable, then stop the server with Ctrl+C to capture its summary. Count per-recipient attempts rather than sender input lines. Repeat runs and record configuration, seed and test environment. A seed reproduces decisions for the same call order; concurrent scheduling can change which recipient gets each decision. Timing varies with the operating system even with a fixed seed.
 
-## Example Results Table
+## Recorded Demonstration Results
 
-Replace the placeholders below with measurements from the final integrated experiment. Do not treat the effective-throughput column as actual network throughput.
+The team supplied the following integrated server output from its Feature 3 demonstration. Values are transcribed without replacing them with later automated test results.
 
-| Condition | Recipient attempts | Socket send successes | Simulated drops | Server-send delivery rate | Mean artificial delay (ms) | Effective throughput (successful sends/sec) |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Baseline | `[N]` | `[N]` | `[N]` | `[N%]` | `[N.N]` | `[N.N]` |
-| Impaired | `[N]` | `[N]` | `[N]` | `[N%]` | `[N.N]` | `[N.N]` |
+| Output metric | Recorded value |
+| --- | ---: |
+| `delivery_attempts` | 96 |
+| `simulated_drops` | 16 |
+| `simulator_passes` | 80 |
+| `socket_send_successes` | 80 |
+| `socket_send_failures` | 0 |
+| `server_send_delivery_rate` | 0.8333333333333334 |
+| `average_artificial_delay_ms` | 49.280207984262816 |
+| `min_artificial_delay_ms` | 40.12997519356122 |
+| `max_artificial_delay_ms` | 59.92242760480194 |
+| `elapsed_seconds` | 16.71994487498887 |
+| `effective_throughput` | 4.784704770149744 |
+
+The accounting is consistent: 96 attempts = 16 drops + 80 passes, and 80 passes = 80 socket send successes + 0 failures. The server-send delivery rate was **83.33%**, and the observed simulated-drop proportion was **16.67%** of recipient attempts. All simulator passes completed socket sending. Mean artificial delay was **49.28 ms**, ranging from **40.13 to 59.92 ms**. Effective throughput was approximately **4.785 successful sends/sec** over **16.720 seconds**, including inter-message gaps.
+
+The supplied output does not include the configured latency, jitter, loss probability, seed, client count, operating systems or network setup. The observed drop proportion is not the configured loss probability. No matching baseline measurements were supplied, so these results establish the recorded impaired run's outcomes, not a quantified change from baseline. The commands in README and the network testing guide are examples rather than a reconstruction of this run.
 
 ## Limitations
 
@@ -67,7 +80,7 @@ Application-level simulated message loss is not actual TCP packet loss and does 
 
 ## Integration
 
-The unified `src/server.py` calls `NetworkConditions.apply(message)` once per intended recipient before sending user chat text. Drops skip sending; passes proceed to the recipient's send lock and socket. `src/send_metrics.py` records outcomes independently of control traffic. Impairment defaults to zero and can be enabled using server CLI options. Final over-the-air testing and report measurements remain to be performed by the team.
+The unified `src/server.py` calls `NetworkConditions.apply(message)` once per intended recipient before sending user chat text. Drops skip sending; passes proceed to the recipient's send lock and socket. `src/send_metrics.py` records outcomes independently of control traffic. Impairment defaults to zero and can be enabled using server CLI options. Integration is complete, and the team's recorded demo measurements are presented above.
 
 ## Generative AI Assistance
 
@@ -75,4 +88,4 @@ Generative AI tools were used to help refine the design of the network-condition
 
 ## Report-ready Summary
 
-Feature 3 provides a modular application-level simulation of artificial latency, artificial jitter, and application-level simulated message loss in the integrated chat server. Baseline and impaired conditions can be compared using per-recipient delivery attempts, simulated drops, socket send outcomes, artificial delay statistics and effective throughput. The measurements characterize the server send path and do not establish remote receipt, actual TCP packet loss or actual network throughput. Final experimental results will be recorded after the team's controlled network tests.
+Feature 3 provides a modular application-level simulation of artificial latency, artificial jitter, and application-level simulated message loss in the integrated chat server. In the recorded demonstration, 96 recipient delivery attempts produced 16 simulated drops and 80 successful socket sends, with no socket send failures. The server-send delivery rate was 83.33%, mean artificial delay was 49.28 ms, and effective throughput was approximately 4.785 successful sends per second. These measurements characterize the server send path and do not establish remote receipt, actual TCP packet loss or actual network throughput. A baseline reduction cannot be quantified from this run alone.
