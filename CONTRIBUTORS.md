@@ -4,11 +4,11 @@ This repository represents collaborative work by all four contributors. The inte
 
 The real-name/GitHub mappings below were supplied by the team. Technical responsibilities were checked against commit diffs and the existing project documentation. Commit IDs refer to the original history; prototype paths describe the current tree.
 
-## Jiho Choi (@whwlqkqjxm)
+## Jiho Choi (@whwlgkqjxm)
 
 Implemented Feature 1's TCP broadcast server and interactive client, including per-client threads, recipient snapshots under a shared lock, per-recipient send locks, newline-based reading, and disconnect handling. These implementations are preserved in `prototypes/feature1/`.
 
-Evidence: `e52e431` (broadcast client), `99ac56b` (client filename change), and `b4bc41e` (broadcast server). These commits use the historical author name `whwlgkqjxm`; the public-facing account mapping above follows the team's supplied identity information. Historical author metadata has not been changed. No separate test-suite authorship is inferred from these commits.
+Evidence: `e52e431` (broadcast client), `99ac56b` (client filename change), and `b4bc41e` (broadcast server). GitHub attributes these commits to `whwlgkqjxm`, matching the public-facing account above. Historical author metadata has not been changed. No separate test-suite authorship is inferred from these commits.
 
 ## Sumanth Gopal (@sumanthgopal22)
 

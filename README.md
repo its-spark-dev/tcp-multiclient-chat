@@ -154,11 +154,20 @@ Its original implementation and subsequent fixes retain their attribution in [CO
 
 ## Testing
 
+Run the Python checks from the project root in either a Git checkout or an extracted source archive:
+
 ```bash
 python3 -m unittest discover -s tests -v
 python3 -m compileall -q src tests examples prototypes
+```
+
+In a Git checkout only, also check changes for whitespace errors:
+
+```bash
 git diff --check
 ```
+
+GitHub source archives do not include the `.git` metadata required by `git diff --check`.
 
 The current checkout passes **18 tests**, including actual localhost multi-client checks for broadcast/private isolation, duplicate usernames and reuse, fragmented UTF-8, impaired operation, and full simulated loss with control traffic preserved. Other tests cover deterministic simulator behavior, send accounting, client wire format, and disconnect/exit handling. Tests use loopback and dynamically allocated ports.
 
@@ -202,7 +211,7 @@ The current checkout passes **18 tests**, including actual localhost multi-clien
 
 ## Contributors
 
-Developed collaboratively by Jiho Choi (@whwlqkqjxm), Sumanth Gopal (@sumanthgopal22), Sean Kong (@SeanK000), and Sang Park (@its-spark-dev). See [CONTRIBUTORS.md](CONTRIBUTORS.md) for verified individual contributions. GitHub contributor history remains the authoritative record of code authorship.
+Developed collaboratively by Jiho Choi (@whwlgkqjxm), Sumanth Gopal (@sumanthgopal22), Sean Kong (@SeanK000), and Sang Park (@its-spark-dev). See [CONTRIBUTORS.md](CONTRIBUTORS.md) for verified individual contributions. GitHub contributor history remains the authoritative record of code authorship.
 
 ## Limitations
 
