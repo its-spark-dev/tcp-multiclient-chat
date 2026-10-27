@@ -12,7 +12,7 @@ The application uses Python standard-library IPv4 TCP sockets. Run `src/server.p
 | `src/network_conditions.py` | Per-attempt simulated drop and requested artificial delay |
 | `src/send_metrics.py` | Thread-safe per-recipient send accounting |
 | `src/feature3_experiment.py` | Standalone simulator comparison and CLI numeric validators |
-| `src/client2.py` | Additional compatible terminal client with positional address and port 5000 |
+| `examples/fixed_port_client.py` | Alternative client example with positional address and fixed port 5000 |
 
 ## Connection Lifecycle
 
@@ -54,6 +54,6 @@ At quiescence, attempts equal drops plus simulator passes; passes equal socket-s
 
 ## Shutdown and Design Tradeoffs
 
-Ctrl+C interrupts the server's accept loop. The server closes tracked sockets to unblock readers and joins worker threads before reporting metrics. In-flight artificial sleeps finish before workers exit. The main client polls stdin with `select`, receives on another thread, and shuts down its socket to unblock receiving before joining that thread. The additional client uses a daemon input reader so remote disconnects can terminate it even with keyboard input blocked.
+Ctrl+C interrupts the server's accept loop. The server closes tracked sockets to unblock readers and joins worker threads before reporting metrics. In-flight artificial sleeps finish before workers exit. The main client polls stdin with `select`, receives on another thread, and shuts down its socket to unblock receiving before joining that thread. The alternative client example uses a daemon input reader so remote disconnects can terminate it even with keyboard input blocked.
 
 The protocol intentionally avoids a framework or external runtime dependency. There are no authenticated identities, TLS, receipt acknowledgements, bounded frame sizes, connection quotas, or idle/send timeouts. Slow recipients and large delays can stall a worker; the project is intended for controlled networking experiments. Automated verification covers real localhost sockets and subprocess cleanup; [manual LAN checks](network-testing.md) cover communication between machines.

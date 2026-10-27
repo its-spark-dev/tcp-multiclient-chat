@@ -35,14 +35,7 @@ python3 src/client.py --host SERVER_IP --port 5001
 
 Register distinct usernames, such as `Sang`, `Jiho`, and `Sean`. Usernames are case-sensitive and contain 1–24 ASCII letters, digits or underscores.
 
-An additional compatible client is available as `src/client2.py`. It accepts a positional server IP and always uses port `5000`, so start the server on that port when using it:
-
-```bash
-python3 src/server.py --host 0.0.0.0 --port 5000
-python3 src/client2.py SERVER_IP
-```
-
-Run each command in its own terminal. Do not pass `--host` or `--port` to `client2.py`. Ordinary messages, `@username message` and `/quit` retain the same behavior. Its UTF-8 streaming and disconnect fixes are regression-tested; Windows console behavior has not been validated.
+This LAN walkthrough uses the canonical `src/client.py`. The separate fixed-port client example and its localhost commands are documented in [README](../README.md#alternative-client-example).
 
 If connection fails, check the server is running, the IP and port are correct, the firewall allows the port, and the network permits communication between devices.
 
@@ -80,7 +73,7 @@ Open an additional client and try an existing username. Verify rejection and suc
 
 ## 5. Feature 3: Impaired Conditions
 
-The following settings are an illustrative repeat test, not the known configuration of the recorded demonstration. If using `client2.py`, substitute port `5000` for `5001`.
+The following settings are an illustrative repeat test, not the known configuration of the recorded demonstration.
 
 Stop the baseline server with Ctrl+C and save its metrics. Restart with:
 

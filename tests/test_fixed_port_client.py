@@ -1,4 +1,4 @@
-"""Regression checks for client2's original wire format and disconnect handling."""
+"""Regression checks for the fixed-port client example's wire format and disconnect handling."""
 
 import contextlib
 import io
@@ -12,11 +12,11 @@ import unittest
 from unittest.mock import Mock
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-from client2 import receive
+sys.path.insert(0, str(ROOT / "examples"))
+from fixed_port_client import receive
 
 
-class Client2Tests(unittest.TestCase):
+class FixedPortClientTests(unittest.TestCase):
     def test_split_utf8_and_unterminated_prompt_keep_exact_output(self):
         client = Mock()
         client.recv.side_effect = [
@@ -37,8 +37,8 @@ class Client2Tests(unittest.TestCase):
         listener.listen()
         listener.settimeout(3)
         port = listener.getsockname()[1]
-        code = ("import socket, sys; sys.path.insert(0, 'src'); "
-                "from client2 import run_client; "
+        code = ("import socket, sys; sys.path.insert(0, 'examples'); "
+                "from fixed_port_client import run_client; "
                 f"run_client(socket.create_connection(('127.0.0.1', {port})))")
         process = subprocess.Popen(
             [sys.executable, "-u", "-c", code], cwd=ROOT,

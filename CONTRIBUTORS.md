@@ -18,7 +18,7 @@ Evidence: `1e98f7a` (socket foundation), `7f10518` (registration/client manageme
 
 ## Sean Kong (@SeanK000)
 
-Implemented Feature 2B's `@username message` parsing, target lookup, private routing, and error handling for missing bodies, unknown targets, self-messages, and socket-send failures in the Feature 2 prototype. Also authored the additional compatible terminal client, `src/client2.py`.
+Implemented Feature 2B's `@username message` parsing, target lookup, private routing, and error handling for missing bodies, unknown targets, self-messages, and socket-send failures in the Feature 2 prototype. Also authored the additional compatible terminal client, `examples/fixed_port_client.py`.
 
 Evidence: `27d8162` (private messaging) and `fad7fd9` (additional client). The existing team-responsibility documentation also credits report and demo polishing; this is a documented team responsibility, rather than a claim of separately committed code. Later UTF-8 and disconnect fixes to `client2.py` are attributed below.
 

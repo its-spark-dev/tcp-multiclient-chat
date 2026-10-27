@@ -77,43 +77,59 @@ These results demonstrate consistent per-recipient accounting and successful soc
 
 ## Quick Start
 
-Use Python 3.11 or newer for the CI configuration; no dependency installation is required. Run commands from the repository root in separate terminals. The primary terminal client supports macOS/Linux.
+Python 3.11 or newer is recommended; no dependency installation is required. Run commands from the repository root. The canonical client is `src/client.py`, which supports macOS/Linux terminals.
 
-1. Start a baseline server on `127.0.0.1:5000`:
+Choose **one** of the following modes. Each mode pairs one server command with its matching client command. Run the server in one terminal and each client in a separate terminal. When switching modes, stop the current server with Ctrl+C and reconnect clients using the new mode's command.
 
-   ```bash
-   python3 src/server.py
-   ```
+### Baseline Localhost
 
-2. Start two or more local clients and register distinct usernames:
+Start the server on `127.0.0.1:5000` with no simulated impairment:
 
-   ```bash
-   python3 src/client.py
-   ```
+```bash
+python3 src/server.py
+```
 
-   Enter `Alice` in one client and `Bob` in another. Send ordinary text for broadcast or `@Bob hello` for a private message.
+Start two or more clients on the same computer:
 
-3. For a LAN connection, bind the server to all IPv4 interfaces:
+```bash
+python3 src/client.py
+```
 
-   ```bash
-   python3 src/server.py --host 0.0.0.0 --port 5001
-   ```
+### LAN
 
-   On each client machine, replace `SERVER_IP` with the server's reachable IPv4 address:
+On the server computer, listen on all IPv4 interfaces on port `5001`:
 
-   ```bash
-   python3 src/client.py --host SERVER_IP --port 5001
-   ```
+```bash
+python3 src/server.py --host 0.0.0.0 --port 5001
+```
 
-   Allow the selected port through the server firewall and use a network that permits communication between devices.
+On each client computer, replace `SERVER_IP` with the server's reachable IPv4 address:
 
-4. Stop the baseline server, then start an impaired server (illustrative settings):
+```bash
+python3 src/client.py --host SERVER_IP --port 5001
+```
 
-   ```bash
-   python3 src/server.py --latency-ms 20 --jitter-ms 5 --loss-rate 0.2 --seed 42
-   ```
+Allow port `5001` through the server firewall and use a network that permits communication between devices.
 
-   Reconnect local clients with `python3 src/client.py`. A 20% loss probability does not guarantee exactly 20% drops in a short run.
+### Impaired Localhost
+
+Start the server on `127.0.0.1:5000` with illustrative simulation settings:
+
+```bash
+python3 src/server.py --latency-ms 20 --jitter-ms 5 --loss-rate 0.2 --seed 42
+```
+
+Start two or more clients on the same computer:
+
+```bash
+python3 src/client.py
+```
+
+A 20% loss probability does not guarantee exactly 20% drops in a short run. These settings do not reconstruct the recorded experiment.
+
+### Using Any Mode
+
+Register distinct usernames, such as `Alice` and `Bob`. Send ordinary text for broadcast or `@Bob hello` for a private message. Enter `/quit` to leave a client; stop the server with Ctrl+C to print its metrics.
 
 For the standalone simulator comparison:
 
@@ -121,13 +137,24 @@ For the standalone simulator comparison:
 python3 src/feature3_experiment.py --messages 10 --latency-ms 20 --jitter-ms 5 --loss-rate 0.2 --seed 42 --compare-baseline
 ```
 
-An additional compatible client is preserved at `src/client2.py`. It accepts an optional positional address (`python3 src/client2.py SERVER_IP`), defaults to loopback, and always uses port **5000**. It has no `--host` or `--port` options. Its original implementation and subsequent fixes are attributed in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+### Alternative Client Example
+
+`examples/fixed_port_client.py` preserves the alternative terminal implementation as an example; use `src/client.py` for the canonical application. The example accepts an optional positional address, defaults to loopback, and always uses port **5000**. It has no `--host` or `--port` options.
+
+To try it locally, run these commands in separate terminals:
+
+```bash
+python3 src/server.py
+python3 examples/fixed_port_client.py
+```
+
+Its original implementation and subsequent fixes retain their attribution in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 ## Testing
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 -m compileall -q src tests prototypes
+python3 -m compileall -q src tests examples prototypes
 git diff --check
 ```
 
@@ -146,14 +173,15 @@ The current checkout passes **18 tests**, including actual localhost multi-clien
 ├── src/
 │   ├── server.py
 │   ├── client.py
-│   ├── client2.py
 │   ├── protocol.py
 │   ├── network_conditions.py
 │   ├── send_metrics.py
 │   └── feature3_experiment.py
+├── examples/
+│   └── fixed_port_client.py
 ├── tests/
 │   ├── test_chat.py
-│   ├── test_client2.py
+│   ├── test_fixed_port_client.py
 │   └── test_network_conditions.py
 ├── docs/
 │   ├── architecture.md
