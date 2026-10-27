@@ -162,7 +162,7 @@ git diff --check
 
 The current checkout passes **18 tests**, including actual localhost multi-client checks for broadcast/private isolation, duplicate usernames and reuse, fragmented UTF-8, impaired operation, and full simulated loss with control traffic preserved. Other tests cover deterministic simulator behavior, send accounting, client wire format, and disconnect/exit handling. Tests use loopback and dynamically allocated ports.
 
-[GitHub Actions](.github/workflows/tests.yml) runs compilation and unittest discovery on Ubuntu with Python 3.11 and 3.13. The workflow has been prepared locally; its first hosted run occurs after publication of the branch. See the [network testing guide](docs/network-testing.md) for repeatable manual LAN checks.
+[GitHub Actions](.github/workflows/tests.yml) runs compilation and unittest discovery on Ubuntu with Python 3.11 and 3.13. The workflow runs automatically on pushes and pull requests and can also be started manually through GitHub Actions. See the [network testing guide](docs/network-testing.md) for repeatable manual LAN checks.
 
 ## Repository Structure
 
