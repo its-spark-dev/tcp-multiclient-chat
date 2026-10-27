@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Local operating-system files and private environment variants
+.DS_Store
+.env.*
