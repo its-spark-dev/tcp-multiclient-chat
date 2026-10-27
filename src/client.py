@@ -9,7 +9,8 @@ import threading
 from protocol import read_lines, send_line
 
 
-def receive_messages(connection, connected):
+def receive_messages(connection: socket.socket, connected: threading.Event) -> None:
+    """Display complete frames and signal the input loop when the server closes."""
     try:
         for line in read_lines(connection):
             print(line, flush=True)
@@ -23,8 +24,9 @@ def receive_messages(connection, connected):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="server address (default: 127.0.0.1)")
+    parser.add_argument("--port", type=int, default=5000, help="server TCP port (default: 5000)")
     args = parser.parse_args()
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as connection:

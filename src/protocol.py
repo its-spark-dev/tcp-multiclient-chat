@@ -1,8 +1,12 @@
 """Small newline-delimited UTF-8 protocol shared by client and server."""
 
 
-def read_lines(connection):
-    """Buffer incomplete bytes, including split UTF-8 sequences, until newline."""
+from collections.abc import Iterator
+import socket
+
+
+def read_lines(connection: socket.socket) -> Iterator[str]:
+    """Buffer through newline before decoding; discard an incomplete frame at EOF."""
     buffer = b""
     while True:
         chunk = connection.recv(4096)
@@ -14,6 +18,6 @@ def read_lines(connection):
             yield line.rstrip(b"\r").decode("utf-8")
 
 
-def send_line(connection, text):
+def send_line(connection: socket.socket, text: str) -> None:
     """Send exactly one newline-terminated line."""
     connection.sendall((text + "\n").encode("utf-8"))

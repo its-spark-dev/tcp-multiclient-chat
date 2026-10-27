@@ -18,11 +18,11 @@ class Peer:
         self.connection = connection
         self.send_lock = threading.Lock()
 
-    def send(self, text):
+    def send(self, text: str) -> None:
         with self.send_lock:
             send_line(self.connection, text)
 
-    def close(self):
+    def close(self) -> None:
         try:
             self.connection.shutdown(socket.SHUT_RDWR)
         except OSError:
@@ -41,7 +41,8 @@ class ChatServer:
         self.conditions = conditions if conditions is not None else NetworkConditions()
         self.metrics = SendMetrics()
 
-    def deliver(self, peer, text):
+    def deliver(self, peer: Peer, text: str) -> None:
+        """Apply impairment once per recipient and record the socket-send outcome."""
         self.metrics.attempt()
         result = self.conditions.apply(text)
         if not result.delivered:
@@ -59,7 +60,8 @@ class ChatServer:
         else:
             self.metrics.record(result, success=True)
 
-    def route(self, username, peer, text):
+    def route(self, username: str, peer: Peer, text: str) -> None:
+        """Route user text; control errors bypass impairment and message metrics."""
         if not text.strip():
             return
         if text.startswith("@"):
@@ -81,10 +83,12 @@ class ChatServer:
             with self.lock:
                 recipients = [other for name, other in self.clients.items()
                               if name != username]
+            # Release shared-state lock before simulated delay or blocking I/O.
             for recipient in recipients:
                 self.deliver(recipient, f"[{username}] {text}")
 
-    def handle(self, peer):
+    def handle(self, peer: Peer) -> None:
+        """Register one connection and process its complete frames until disconnect."""
         username = None
         try:
             peer.send("[Server] Enter username:")
@@ -117,7 +121,8 @@ class ChatServer:
                 self.peers.discard(peer)
             peer.close()
 
-    def serve(self, host, port):
+    def serve(self, host: str, port: int) -> None:
+        """Accept per-client workers, then close sockets and join workers on exit."""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
             listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             listener.bind((host, port))
@@ -144,12 +149,16 @@ class ChatServer:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=5000)
-    parser.add_argument("--latency-ms", type=non_negative_float, default=0)
-    parser.add_argument("--jitter-ms", type=non_negative_float, default=0)
-    parser.add_argument("--loss-rate", type=loss_rate, default=0)
-    parser.add_argument("--seed", type=int)
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="IPv4 bind address (default: 127.0.0.1; use 0.0.0.0 for LAN)")
+    parser.add_argument("--port", type=int, default=5000, help="TCP port (default: 5000)")
+    parser.add_argument("--latency-ms", type=non_negative_float, default=0,
+                        help="artificial latency in milliseconds (default: 0)")
+    parser.add_argument("--jitter-ms", type=non_negative_float, default=0,
+                        help="uniform +/- jitter in milliseconds (default: 0)")
+    parser.add_argument("--loss-rate", type=loss_rate, default=0,
+                        help="application-level drop probability, 0 to 1 (default: 0)")
+    parser.add_argument("--seed", type=int, help="seed random decisions for a fixed call order")
     args = parser.parse_args()
     server = ChatServer(NetworkConditions(args.latency_ms, args.jitter_ms,
                                           args.loss_rate, args.seed))

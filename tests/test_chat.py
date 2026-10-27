@@ -3,6 +3,8 @@
 import ast
 from pathlib import Path
 import signal
+import queue
+import threading
 import socket
 import subprocess
 import sys
@@ -142,7 +144,23 @@ class LocalhostTests(unittest.TestCase):
         self.assertIn("delivery_attempts: 2", output)
         self.assertIn("simulator_passes: 2", output)
         self.assertIn("average_artificial_delay_ms:", output)
-        print("\nPreliminary impaired localhost metrics:\n" + output)
+        print("\nAutomated impaired localhost metrics:\n" + output)
+
+    def test_full_loss_preserves_registration_and_errors(self):
+        process, address = self.start_server("--loss-rate", "1")
+        a, ar = self.connect(address, "Alice")
+        b, _ = self.connect(address, "Bob")
+        send_line(a, "broadcast is dropped")
+        send_line(a, "@Bob private is dropped")
+        # This control response follows both attempts in the same worker.
+        send_line(a, "@missing hello")
+        self.assertIn(b"not found", ar.readline())
+        self.assert_quiet(b)
+        output = self.stop_server(process)
+        self.assertIn("delivery_attempts: 2", output)
+        self.assertIn("simulated_drops: 2", output)
+        self.assertIn("socket_send_successes: 0", output)
+        self.assertEqual(process.returncode, 0)
 
     def test_interactive_client_exits_on_server_disconnect(self):
         process, address = self.start_server()
@@ -154,14 +172,21 @@ class LocalhostTests(unittest.TestCase):
         # Register via the real terminal client's stdin.
         client.stdin.write("TerminalUser\n")
         client.stdin.flush()
-        import concurrent.futures
+        registered = queue.Queue()
+
         def await_registration():
             for line in client.stdout:
                 if "Registered: TerminalUser" in line:
-                    return True
-            return False
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            self.assertTrue(pool.submit(await_registration).result(timeout=3))
+                    registered.put(True)
+                    return
+            registered.put(False)
+
+        # A failed timeout must reach subprocess cleanup, not wait forever for
+        # an executor's blocking reader to finish during context-manager exit.
+        reader = threading.Thread(target=await_registration, daemon=True)
+        reader.start()
+        self.assertTrue(registered.get(timeout=3))
+        reader.join(timeout=1)
         self.stop_server(process)
         output, _ = client.communicate(timeout=5)
         self.assertEqual(client.returncode, 0, output)
