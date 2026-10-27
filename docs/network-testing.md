@@ -1,6 +1,6 @@
 # LAN Testing Guide
 
-This guide provides a repeatable procedure for checking the integrated application across machines; it is not a verbatim record of the recorded experiment configuration. See [Feature 3 results](feature3.md#recorded-demonstration-results) for the team-provided measurements.
+This guide provides a repeatable procedure for checking the integrated application across machines; it is not a verbatim record of the recorded experiment configuration. See [recorded simulation results](feature3.md#recorded-demonstration-results) for the team-provided measurements.
 
 Use one server computer and at least three client sessions, preferably on separate computers. Run all commands from the repository root of the same source version, using a Git checkout. The primary interactive client (`src/client.py`) supports macOS/Linux terminals; Windows console input is not supported or validated.
 
@@ -39,7 +39,7 @@ This LAN walkthrough uses the canonical `src/client.py`. The separate fixed-port
 
 If connection fails, check the server is running, the IP and port are correct, the firewall allows the port, and the network permits communication between devices.
 
-## 3. Feature 1: Broadcast Messaging
+## 3. Broadcast Messaging
 
 From Sang, enter:
 
@@ -49,7 +49,7 @@ hello everyone
 
 Verify that Jiho and Sean receive `[Sang] hello everyone`, and Sang does not receive an echoed broadcast. Repeat from each client to check that all clients can send and receive.
 
-## 4. Feature 2: Registration and Private Messaging
+## 4. Username Registration and Private Messaging
 
 From Sang, enter:
 
@@ -71,7 +71,7 @@ Verify sender-only errors for an unknown target, a missing message body, and a s
 
 Open an additional client and try an existing username. Verify rejection and successful retry with a different name. Check rejection of an empty or invalid username. Disconnect a registered client using `/quit`, then verify a new client can register that released username.
 
-## 5. Feature 3: Impaired Conditions
+## 5. Network Condition Simulation
 
 The following settings are an illustrative repeat test, not the known configuration of the recorded demonstration.
 
@@ -118,7 +118,7 @@ One broadcast to two recipients counts as two attempts. Socket send success does
 
 Keep the workload and input timing comparable between baseline and impaired runs. Elapsed time includes gaps between messages, so manual typing speed affects effective throughput. A fixed seed reproduces random decisions for the same call order; concurrent scheduling can change the recipient associated with each decision.
 
-These metrics characterize the server send path. Application-level simulated message loss is not actual TCP packet loss, and effective throughput is not actual network throughput. Label automated smoke-test output, recorded demo results and any additional experiments separately. See [Feature 3 documentation](feature3.md) for complete metric definitions and the recorded run's 96 attempts, 16 simulated drops and 80 successful socket sends.
+These metrics characterize the server send path. Application-level simulated message loss is not actual TCP packet loss, and effective throughput is not actual network throughput. Label automated smoke-test output, recorded demo results and any additional experiments separately. See [network condition simulation documentation](feature3.md) for complete metric definitions and the recorded run's 96 attempts, 16 simulated drops and 80 successful socket sends.
 
 ## 7. Finish
 

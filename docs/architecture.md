@@ -50,7 +50,7 @@ The worker handling a sender processes recipients sequentially. Other workers re
 
 Only valid user-message recipient deliveries call `ChatServer.deliver()`. A simulated drop skips socket sending. A pass sleeps for the requested delay, then attempts `Peer.send()`. Registration and validation errors call `Peer.send()` directly and do not increment impairment metrics. Control messages still share the socket-send lock and may wait behind a blocking socket write.
 
-At quiescence, attempts equal drops plus simulator passes; passes equal socket-send successes plus failures. A live snapshot can contain attempts still in flight. Shutdown prints the final summary after workers finish. See [Feature 3](feature3.md) for formulas, recorded measurements, and interpretation limits.
+At quiescence, attempts equal drops plus simulator passes; passes equal socket-send successes plus failures. A live snapshot can contain attempts still in flight. Shutdown prints the final summary after workers finish. See [Network condition simulation](feature3.md) for formulas, recorded measurements, and interpretation limits.
 
 ## Shutdown and Design Tradeoffs
 

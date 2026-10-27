@@ -56,11 +56,11 @@ Each accepted connection has its own worker thread. A shared lock protects usern
 
 For each intended recipient, `NetworkConditions` independently decides whether to drop a user message. A pass waits for fixed latency plus uniform positive/negative jitter, clamped to zero, before the socket send. Registration and control errors bypass impairment. A seed reproduces random decisions for a fixed call order; concurrent scheduling can change recipient assignment.
 
-This is **application-level message loss**, not actual TCP packet loss or retransmission modeling. `sendall()` success means the local socket send completed; it does not acknowledge receipt or display by the client. The server prints cumulative metrics when stopped with Ctrl+C. See [Feature 3 details and metric definitions](docs/feature3.md).
+This is **application-level message loss**, not actual TCP packet loss or retransmission modeling. `sendall()` success means the local socket send completed; it does not acknowledge receipt or display by the client. The server prints cumulative metrics when stopped with Ctrl+C. See [Network condition simulation details and metric definitions](docs/feature3.md).
 
 ## Results
 
-The existing [team-recorded Feature 3 run](docs/feature3.md#recorded-demonstration-results) reports:
+The existing [team-recorded simulation run](docs/feature3.md#recorded-demonstration-results) reports:
 
 | Metric | Recorded value |
 | --- | ---: |
@@ -136,6 +136,8 @@ For the standalone simulator comparison:
 ```bash
 python3 src/feature3_experiment.py --messages 10 --latency-ms 20 --jitter-ms 5 --loss-rate 0.2 --seed 42 --compare-baseline
 ```
+
+For an integrated socket experiment with an exact configuration, automated traffic, and metric interpretation, follow the [reproducible server experiment](docs/feature3.md#reproducible-server-experiment).
 
 ### Alternative Client Example
 
