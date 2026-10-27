@@ -1,15 +1,17 @@
+"""Additional terminal client using a positional server address and fixed port 5000."""
+
 import codecs
 import os
 import socket
 import sys
 import threading
 
-HOST = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 PORT = 5000
 
 
 # Print the same text even when a UTF-8 character spans multiple recv calls.
 def receive(client, stopping):
+    """Decode the server byte stream incrementally, preserving displayed text."""
     decoder = codecs.getincrementaldecoder("utf-8")()
     try:
         while True:
@@ -25,6 +27,7 @@ def receive(client, stopping):
 
 
 def run_client(client):
+    """Run input and receiving until local exit or server disconnect."""
     stopping = threading.Event()
 
     # Blocking keyboard input must not keep the process alive after disconnect.
@@ -72,4 +75,5 @@ def run_client(client):
 
 
 if __name__ == "__main__":
-    run_client(socket.create_connection((HOST, PORT)))
+    host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
+    run_client(socket.create_connection((host, PORT)))

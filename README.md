@@ -1,124 +1,214 @@
-# TCP Multiclient Chat
+# TCP Multi-Client Chat
 
-A four-person CSE 3461 Python networking project using the standard library.
+[![Tests](https://github.com/its-spark-dev/tcp-multiclient-chat/actions/workflows/tests.yml/badge.svg)](https://github.com/its-spark-dev/tcp-multiclient-chat/actions/workflows/tests.yml)
 
-## Implementation Status
+A concurrent TCP chat system with broadcast and private messaging, plus controlled network-condition simulation and server send-path metrics. Built in Python using only the standard library.
 
-- **Feature 1 — Broadcast Messaging:** implemented and integrated. Ordinary messages go to every other registered client, identified by sender username.
-- **Feature 2A — Username Registration and Client Management:** implemented and integrated. Registration requires a unique, case-sensitive username of 1–24 ASCII letters, digits or underscores. Rejected usernames can be retried.
-- **Feature 2B — Private Messaging:** implemented and integrated. `@username message` goes only to that recipient. Unknown targets, missing message bodies and self-messages produce sender-only errors.
-- **Feature 3 — Network Condition Simulation:** implemented, tested and integrated into the server user-message send path. Artificial latency, artificial jitter and application-level simulated message loss apply independently per intended recipient. Registration, validation errors and other control messages bypass impairment.
+## Why This Project
 
-Localhost integration is verified by automated tests, and the team has completed its recorded group demonstration. The recorded Feature 3 server-send-path results are documented in [docs/feature3.md](docs/feature3.md). The network testing guide remains available for repeating the checks.
+This project makes TCP stream framing, concurrent socket handling, shared-state synchronization, and message routing visible in a small implementation. It originated as a four-person Ohio State CSE 3461 networking project and was subsequently cleaned up for public portfolio use. The final system combines all four contributors' work; [CONTRIBUTORS.md](CONTRIBUTORS.md) documents responsibilities and supporting history.
 
-Team-provided [demonstration recording](https://drive.google.com/file/d/197RvJehJyeoTg7UpOCVCWLBoGXtqvAN_/view). Confirm that evaluators can view and download the recording using the shared link.
+## Features
 
-## Team Responsibilities
+- Multi-client IPv4 TCP server with one worker thread per connection.
+- Unique, case-sensitive username registration: 1–24 ASCII letters, digits, or underscores.
+- Broadcast messages to every other registered client.
+- `@username message` private routing with sender-only validation errors.
+- Newline-delimited UTF-8 framing that handles fragmented and coalesced reads.
+- Disconnect cleanup, username reuse, and coordinated server shutdown.
+- Artificial latency, jitter, and application-level simulated message loss.
+- Per-recipient delivery attempts, simulated drops, socket-send outcomes, and delay/throughput metrics.
 
-- **Jiho — Feature 1: Broadcast Messaging:** implement broadcast communication through the central TCP server.
-- **Sumanth — Feature 2A: Username Registration and Client Management:** handle username registration, username/client mappings, and related connection management.
-- **Sean — Feature 2B: Private Message Routing and Handling:** implement `@username` private-message parsing, routing, and related handling; also help polish the final report and presentation/demo video.
-- **Sang — Feature 3: Network Condition Simulation and Performance Metrics:** simulate latency, jitter, and application-level message loss, and measure their performance impact.
+## Architecture
 
-The team has recorded its group demonstration. Each implementation owner's technical contribution should also be described in the accompanying project report.
+```mermaid
+flowchart TD
+    Clients[Terminal clients] -->|TCP: newline-delimited UTF-8| Server[TCP server: per-client threads]
+    Server --> Sessions[Username and session management]
+    Sessions --> Router[Broadcast or private routing]
+    Router --> Conditions[NetworkConditions: per-recipient user messages]
+    Conditions --> Delay[Artificial latency and jitter]
+    Conditions --> Drop[Simulated message drop]
+    Delay --> Lock[Recipient send lock]
+    Server -->|Registration and control errors bypass impairment| Lock
+    Lock --> Send[socket.sendall]
+    Send --> Recipients[Recipient clients]
+```
 
-## Running the Integrated Application
+The primary entry points are `src/server.py` and `src/client.py`. See [architecture.md](docs/architecture.md) for protocol, locking, and shutdown details.
 
-Baseline server (default: `127.0.0.1:5000`, zero impairment):
+## Message Flow
+
+- **Broadcast:** `hello everyone` → server → all other registered clients as `[Alice] hello everyone`. The sender receives no echo.
+- **Private:** `@Bob hello` → server username lookup → Bob alone as `[Private] Alice: hello`. There is no sender delivery confirmation.
+
+Unknown targets, self-messages, and missing private-message bodies produce sender-only errors. Enter `/quit` to disconnect.
+
+## TCP Framing
+
+TCP carries a byte stream: a single `recv()` may contain part of a message or multiple messages. `src/protocol.py` accumulates bytes until a newline, extracts each complete frame, and then decodes UTF-8. This also handles characters split across reads. Incomplete frames remain buffered; a trailing frame without a newline is discarded at disconnect. Embedded newlines delimit separate messages.
+
+## Concurrency and Synchronization
+
+Each accepted connection has its own worker thread. A shared lock protects username/session state; routing copies recipients or looks up a target under that lock, then releases it before delays and socket I/O. Each recipient has a separate send lock to keep concurrent writes from interleaving frames. Disconnect cleanup removes only the mapping owned by that connection, releases the username, and closes the socket. Shutdown closes tracked connections and joins worker threads.
+
+## Network Condition Simulation
+
+For each intended recipient, `NetworkConditions` independently decides whether to drop a user message. A pass waits for fixed latency plus uniform positive/negative jitter, clamped to zero, before the socket send. Registration and control errors bypass impairment. A seed reproduces random decisions for a fixed call order; concurrent scheduling can change recipient assignment.
+
+This is **application-level message loss**, not actual TCP packet loss or retransmission modeling. `sendall()` success means the local socket send completed; it does not acknowledge receipt or display by the client. The server prints cumulative metrics when stopped with Ctrl+C. See [Network condition simulation details and metric definitions](docs/feature3.md).
+
+## Results
+
+The existing [team-recorded simulation run](docs/feature3.md#recorded-demonstration-results) reports:
+
+| Metric | Recorded value |
+| --- | ---: |
+| Recipient delivery attempts | 96 |
+| Simulated drops | 16 |
+| Simulator passes / successful socket sends | 80 / 80 |
+| Socket send failures | 0 |
+| Server-send delivery rate | 83.33% |
+| Mean requested artificial delay | 49.28 ms |
+| Effective throughput | 4.785 successful sends/sec |
+| Elapsed interval | 16.720 seconds |
+
+These results demonstrate consistent per-recipient accounting and successful socket sends for all simulator passes. They describe the server send path, including inter-message gaps, rather than end-to-end latency or actual network throughput. The exact configuration and a matching baseline were not recorded in the available documentation, so no baseline performance reduction is claimed.
+
+## Quick Start
+
+Python 3.11 or newer is recommended; no dependency installation is required. Run commands from the repository root. The canonical client is `src/client.py`, which supports macOS/Linux terminals.
+
+Choose **one** of the following modes. Each mode pairs one server command with its matching client command. Run the server in one terminal and each client in a separate terminal. When switching modes, stop the current server with Ctrl+C and reconnect clients using the new mode's command.
+
+### Baseline Localhost
+
+Start the server on `127.0.0.1:5000` with no simulated impairment:
 
 ```bash
 python3 src/server.py
 ```
 
-In each client terminal:
+Start two or more clients on the same computer:
 
 ```bash
 python3 src/client.py
 ```
 
-Enter a username when prompted. Send ordinary text for broadcast, `@Jiho hello` for a private message, and `/quit` to leave. Ctrl+C exits either application.
+### LAN
 
-Example impaired server (illustrative settings, not a reconstruction of the recorded demonstration):
+On the server computer, listen on all IPv4 interfaces on port `5001`:
+
+```bash
+python3 src/server.py --host 0.0.0.0 --port 5001
+```
+
+On each client computer, replace `SERVER_IP` with the server's reachable IPv4 address:
+
+```bash
+python3 src/client.py --host SERVER_IP --port 5001
+```
+
+Allow port `5001` through the server firewall and use a network that permits communication between devices.
+
+### Impaired Localhost
+
+Start the server on `127.0.0.1:5000` with illustrative simulation settings:
 
 ```bash
 python3 src/server.py --latency-ms 20 --jitter-ms 5 --loss-rate 0.2 --seed 42
 ```
 
-For teammates on a reachable network, bind the server to all interfaces and connect clients to the server computer's reachable IPv4 address:
+Start two or more clients on the same computer:
 
 ```bash
-python3 src/server.py --host 0.0.0.0 --port 5001
-python3 src/client.py --host 192.168.1.10 --port 5001
+python3 src/client.py
 ```
 
-Replace the example IP with the actual server address and allow the selected port through the host firewall. Run only one server on a given host/port. The terminal client's keyboard polling uses `select` on stdin, as in Feature 1; macOS/Linux terminals are supported. Windows console input has not been supported or validated.
+A 20% loss probability does not guarantee exactly 20% drops in a short run. These settings do not reconstruct the recorded experiment.
 
-The server uses per-client threads, newline-delimited UTF-8 framing, a locked username mapping and per-client send locks. Incomplete frames remain buffered; a trailing frame without a newline is discarded at disconnect.
+### Using Any Mode
 
-### Additional Client: client2.py
+Register distinct usernames, such as `Alice` and `Bob`. Send ordinary text for broadcast or `@Bob hello` for a private message. Enter `/quit` to leave a client; stop the server with Ctrl+C to print its metrics.
 
-`src/client2.py` is a separate, compatible terminal client contributed by the team. It preserves plain broadcast text, `@username message`, and local `/quit` handling. It accepts an optional positional server IP and always connects to port `5000`:
-
-```bash
-python3 src/server.py --host 0.0.0.0 --port 5000
-python3 src/client2.py 192.168.1.10
-```
-
-Run these commands in separate server/client terminals. Omitting the IP defaults to `127.0.0.1`. Unlike `client.py`, this client has no `--host` or `--port` options. Its UTF-8 streaming and disconnect fixes preserve the message format; regression tests cover both. Windows console behavior has not been validated.
-
-## Feature 3 Measurements
-
-On shutdown, the server prints delivery attempts, simulated drops, simulator passes, socket send successes/failures, artificial delay statistics and effective throughput. Each intended recipient counts as one attempt. Socket send success means `sendall` completed; it does not confirm receipt or display by the remote client. There is no ACK protocol.
-
-Application-level simulated message loss is not actual TCP packet loss. Effective throughput is successful server sends per elapsed second, not actual network throughput. See [Feature 3 documentation](docs/feature3.md) for exact definitions and limitations.
-
-The team-provided recorded run contained 96 recipient delivery attempts, 16 simulated drops, 80 simulator passes, 80 socket send successes and no socket send failures. The server-send delivery rate was 83.33%, mean artificial delay was 49.28 ms, and effective throughput was approximately 4.785 successful sends/sec over 16.720 seconds. These are recorded demo results, distinct from automated smoke-test output. A matching baseline result and the exact recorded-run configuration were not supplied, so no baseline performance reduction is claimed.
-
-The standalone simulator experiment remains available:
+For the standalone simulator comparison:
 
 ```bash
 python3 src/feature3_experiment.py --messages 10 --latency-ms 20 --jitter-ms 5 --loss-rate 0.2 --seed 42 --compare-baseline
 ```
 
-## Repository Structure
+For an integrated socket experiment with an exact configuration, automated traffic, and metric interpretation, follow the [reproducible server experiment](docs/feature3.md#reproducible-server-experiment).
 
-```text
-tcp-multiclient-chat/
-├── src/
-│   ├── server.py                 # final integrated server
-│   ├── client.py                 # final integrated interactive client
-│   ├── client2.py                # additional compatible client, fixed port 5000
-│   ├── protocol.py               # shared newline framing
-│   ├── network_conditions.py     # reusable Feature 3 simulator
-│   ├── send_metrics.py           # integrated send-path counters
-│   ├── feature3_experiment.py    # standalone experiment
-│   └── feature2a.py              # historical Feature 2A/2B implementation
-├── Feature 1 Server.py           # historical individual server
-├── Feature 1 client.py           # historical individual client
-├── tests/
-│   ├── test_chat.py
-│   ├── test_client2.py
-│   └── test_network_conditions.py
-├── docs/
-│   ├── feature3.md
-│   └── network-testing.md
-├── README.md
-└── .gitignore
+### Alternative Client Example
+
+`examples/fixed_port_client.py` preserves the alternative terminal implementation as an example; use `src/client.py` for the canonical application. The example accepts an optional positional address, defaults to loopback, and always uses port **5000**. It has no `--host` or `--port` options.
+
+To try it locally, run these commands in separate terminals:
+
+```bash
+python3 src/server.py
+python3 examples/fixed_port_client.py
 ```
 
-Historical files preserve teammates' original contributions and are separate earlier implementations. Use `src/server.py` and `src/client.py` for the unified application, or `src/client2.py` as the additional client on port 5000.
+Its original implementation and subsequent fixes retain their attribution in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
-## Development and Testing
-
-See [testing between teammates' computers](docs/network-testing.md) for IP setup, server/client commands, Feature 1–3 verification, and result collection.
-
-Collaborate through feature branches and reviewed pull requests. The integration combines the original Feature 1 broadcast/threading design with Feature 2A registration and Feature 2B routing, and reuses Feature 3's simulator.
+## Testing
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 -m compileall -q src tests
+python3 -m compileall -q src tests examples prototypes
+git diff --check
 ```
 
-These commands work from the extracted source ZIP; no third-party dependencies are required. In a Git checkout only, `git diff --check` can additionally check whitespace changes.
+The current checkout passes **18 tests**, including actual localhost multi-client checks for broadcast/private isolation, duplicate usernames and reuse, fragmented UTF-8, impaired operation, and full simulated loss with control traffic preserved. Other tests cover deterministic simulator behavior, send accounting, client wire format, and disconnect/exit handling. Tests use loopback and dynamically allocated ports.
 
-The latest verification passed all 17 tests. The suite includes deterministic simulator tests, actual localhost three-client smoke tests for baseline/impaired operation, registration, framing, broadcast/private isolation, errors and cleanup, plus `client2.py` UTF-8, wire-format and shutdown regression tests. Automated test metrics are verification results, not the recorded demo measurements.
+[GitHub Actions](.github/workflows/tests.yml) runs compilation and unittest discovery on Ubuntu with Python 3.11 and 3.13. The workflow has been prepared locally; its first hosted run occurs after publication of the branch. See the [network testing guide](docs/network-testing.md) for repeatable manual LAN checks.
+
+## Repository Structure
+
+```text
+.
+├── README.md
+├── CONTRIBUTORS.md
+├── .gitignore
+├── .github/workflows/tests.yml
+├── src/
+│   ├── server.py
+│   ├── client.py
+│   ├── protocol.py
+│   ├── network_conditions.py
+│   ├── send_metrics.py
+│   └── feature3_experiment.py
+├── examples/
+│   └── fixed_port_client.py
+├── tests/
+│   ├── test_chat.py
+│   ├── test_fixed_port_client.py
+│   └── test_network_conditions.py
+├── docs/
+│   ├── architecture.md
+│   ├── feature3.md
+│   └── network-testing.md
+└── prototypes/
+    ├── README.md
+    ├── feature1/
+    │   ├── server.py
+    │   └── client.py
+    └── feature2/
+        └── feature2a.py
+```
+
+`prototypes/` preserves earlier team implementations for historical context and attribution. Their protocols differ from the integrated application; use `src/server.py` and `src/client.py` for the combined system.
+
+## Contributors
+
+Developed collaboratively by Jiho Choi (@whwlqkqjxm), Sumanth Gopal (@sumanthgopal22), Sean Kong (@SeanK000), and Sang Park (@its-spark-dev). See [CONTRIBUTORS.md](CONTRIBUTORS.md) for verified individual contributions. GitHub contributor history remains the authoritative record of code authorship.
+
+## Limitations
+
+- Terminal interface; the primary client uses POSIX stdin polling. Windows console input has not been supported or validated; testing has focused on macOS/Linux.
+- No authentication, encryption, or end-to-end delivery acknowledgements. Usernames identify sessions rather than verified identities.
+- Application-level loss simulation does not manipulate transport-layer packets.
+- Artificial delays and blocking socket writes can delay a worker; broadcast recipients are processed sequentially. Concurrent workers can reorder delivery.
+- No frame-size cap, connection limit, or idle/send timeout: intended for controlled demonstrations rather than an untrusted public service.
+- No open-source license has been selected by the contributors.

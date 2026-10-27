@@ -5,6 +5,8 @@ import time
 
 
 class SendMetrics:
+    """Keep per-recipient accounting separate from registration and errors."""
+
     def __init__(self):
         self.lock = threading.Lock()
         self.started = None
@@ -35,6 +37,7 @@ class SendMetrics:
             self.delay_max = delay if self.delay_max is None else max(self.delay_max, delay)
 
     def summary(self):
+        """Return a locked snapshot; in-flight attempts may lack outcomes yet."""
         with self.lock:
             elapsed = (self.finished - self.started) if self.finished is not None else 0
             return {
