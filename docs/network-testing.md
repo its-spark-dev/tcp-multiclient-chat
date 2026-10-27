@@ -1,21 +1,21 @@
-# Testing Between Teammates' Computers
+# LAN Testing Guide
 
-The team has completed its recorded group demonstration. This guide remains the repeatable procedure for checking the submitted application; it is not a verbatim record of the demo configuration. See [Feature 3 results](feature3.md#recorded-demonstration-results) for the team-provided measurements.
+This guide provides a repeatable procedure for checking the integrated application across machines; it is not a verbatim record of the recorded experiment configuration. See [Feature 3 results](feature3.md#recorded-demonstration-results) for the team-provided measurements.
 
-Use one server computer and at least three client sessions, preferably on separate teammates' computers. Run all commands from the repository root of the same source version, either a Git checkout or the extracted submission ZIP. The primary interactive client (`src/client.py`) supports macOS/Linux terminals; Windows console input is not supported or validated.
+Use one server computer and at least three client sessions, preferably on separate computers. Run all commands from the repository root of the same source version, using a Git checkout. The primary interactive client (`src/client.py`) supports macOS/Linux terminals; Windows console input is not supported or validated.
 
 ## 1. Network and IP Setup
 
-Connect the computers to the same Wi-Fi or another mutually reachable network. School/guest Wi-Fi may isolate clients; if connections fail, try a network that permits device-to-device traffic.
+Connect the computers to the same Wi-Fi or another mutually reachable network. Guest Wi-Fi may isolate clients; if connections fail, try a network that permits device-to-device traffic.
 
 Find the server computer's IPv4 address:
 
 - macOS: System Settings → Wi-Fi → connected network details → TCP/IP.
 - Linux: run `ip -4 addr` and identify the address of the connected interface.
 
-The examples below use `192.168.1.10`; replace it with the server's actual address. Allow inbound TCP connections on port `5001` through the server firewall.
+Replace `SERVER_IP` below with the server's reachable IPv4 address. Allow inbound TCP connections on port `5001` through the server firewall.
 
-- `127.0.0.1` means the local computer; do not use it to connect to a teammate's server.
+- `127.0.0.1` means the local computer; do not use it to connect to a remote server.
 - `0.0.0.0` lets the server listen on all IPv4 interfaces. Clients must use the server's reachable IP address instead.
 - The client and server port must match. Run only one server on a given address/port.
 
@@ -30,7 +30,7 @@ python3 src/server.py --host 0.0.0.0 --port 5001
 On each client computer:
 
 ```bash
-python3 src/client.py --host 192.168.1.10 --port 5001
+python3 src/client.py --host SERVER_IP --port 5001
 ```
 
 Register distinct usernames, such as `Sang`, `Jiho`, and `Sean`. Usernames are case-sensitive and contain 1–24 ASCII letters, digits or underscores.
@@ -39,7 +39,7 @@ An additional compatible client is available as `src/client2.py`. It accepts a p
 
 ```bash
 python3 src/server.py --host 0.0.0.0 --port 5000
-python3 src/client2.py 192.168.1.10
+python3 src/client2.py SERVER_IP
 ```
 
 Run each command in its own terminal. Do not pass `--host` or `--port` to `client2.py`. Ordinary messages, `@username message` and `/quit` retain the same behavior. Its UTF-8 streaming and disconnect fixes are regression-tested; Windows console behavior has not been validated.
@@ -129,4 +129,4 @@ These metrics characterize the server send path. Application-level simulated mes
 
 ## 7. Finish
 
-Exit clients with `/quit` or Ctrl+C, stop the server with Ctrl+C, and confirm no test application processes remain running. Retain the server summaries and recipient observations for the team report and demonstration.
+Exit clients with `/quit` or Ctrl+C, stop the server with Ctrl+C, and confirm no test application processes remain running. Retain the server summaries and recipient observations with the experiment configuration for reproducibility.

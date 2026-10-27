@@ -86,6 +86,6 @@ The unified `src/server.py` calls `NetworkConditions.apply(message)` once per in
 
 Generative AI tools were used to help refine the design of the network-condition simulator, suggest a modular implementation structure, generate and review unit-test cases, verify terminology for application-level simulated message loss, and improve the clarity of the Feature 3 documentation. Final design decisions, implementation review, and validation were performed by the team.
 
-## Report-ready Summary
+## Technical Summary
 
 Feature 3 provides a modular application-level simulation of artificial latency, artificial jitter, and application-level simulated message loss in the integrated chat server. In the recorded demonstration, 96 recipient delivery attempts produced 16 simulated drops and 80 successful socket sends, with no socket send failures. The server-send delivery rate was 83.33%, mean artificial delay was 49.28 ms, and effective throughput was approximately 4.785 successful sends per second. These measurements characterize the server send path and do not establish remote receipt, actual TCP packet loss or actual network throughput. A baseline reduction cannot be quantified from this run alone.
